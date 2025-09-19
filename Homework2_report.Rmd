@@ -6,7 +6,7 @@ output: html_document
 
 ## Name
 
-Please enter your name here.
+Mehal Agrawal 
 
 ### Setup
 
@@ -15,7 +15,9 @@ Read in the data with `read_csv()` and store the data as an R object named `data
 
 ```{r}
 ## Load the data and any necessary packages here.
-
+library(tidyverse)
+library(ggplot2)
+dataset <- read_csv("maacs.csv.gz")
 ```
 
 ## Part 1
@@ -33,6 +35,12 @@ NOTE: For this part, do not use any plots.
 ```{r}
 ## Write your function here
 
+check_cor_val <- function(dataset) {
+  cor_val <- cor(dataset$fev1, dataset$age, use = "complete.obs")
+  return(cor_val > 0)
+}
+
+check_cor_val(dataset)
 ```
 
 
@@ -44,12 +52,15 @@ How much does FEV1 change for a 1-year increase in the child's age?
 
 ```{r}
 ## Add your code here
-
+ggplot(data = dataset, aes(x = age, y = fev1)) + geom_point()
+model <- lm(fev1 ~ age, data = dataset)
+model
 ```
 
 
 Write your data analysis statement interpreting the regression model here:
 
+For every 1 year increase in age, the fev1 level changes by 0.17 on average. The positive slope indicates that an increase in age results in an increase in fev1 levels. This suggests that older children tend to have higher fev1 levels. 
 
 
 ## Part 3
@@ -63,18 +74,30 @@ NOTE:
 * Do not use the code you write in Part 1 as a supporting premise
 
 ```{r}
-## Add your code here
+## Add your code here 
+
+## 2. The boxplot comparing fev1 values acorss age groups demonstrates that hte distribution of fev1 shifts updward as age increasing indicating that older children have a higher median and overall fev1 values that younger children.
+
+dataset$age_group <- cut(dataset$age, breaks = 4, labels = c("Youngest", "Younger", "Older", "Oldest"))
+
+ggplot(dataset, aes(x = age_group, y = fev1)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "FEV1 by Age Group",
+       x = "Age Group",
+       y = "fev1")
+
+
 
 ```
 
 
 Write the three supporting premise statements here:
 
-1. 
+1. Children in the top 25% of ages have a higher average FEV1 while children in the bottom 25% of ages have a lower average FEV1 indicating higher level of FEV1 in older children.
 
-2. 
+2. The boxplot comparing fev1 values acorss age groups demonstrates that hte distribution of fev1 shifts updward as age increasing indicating that older children have a higher median and overall fev1 values that younger children.
 
-3. 
+3. A comparison of mean fev1 between younger and older children shows a statistically significant difference, indicating that older childnre have a ahigher average of fev1 values than younger children.
 
 
 ## Part 4
@@ -90,24 +113,72 @@ For statements involving plots, instead of returning `TRUE` or `FALSE`, you func
 
 ```{r}
 ## Function for supporting premise statement 1
+premise_1 <- function(dataset) {
+  q <- stats::quantile(dataset$age, c(0.25, 0.75), na.rm = TRUE)
+  young <- dataset$fev1[dataset$age <= q[1]]
+  old <- dataset$fev1[dataset$age >= q[2]]
+  if (mean(old, na.rm = TRUE) > mean(young, na.rm = TRUE)) return(TRUE)
+  else return(FALSE) 
+}
 
 ```
 
 
 ```{r}
 ## Function for supporting premise statement 2
+premise_2 <- function(dataset) {
+  dataset$age_group <- cut(dataset$age,
+                           breaks = 4,
+                           labels = c("Youngest", "Younger", "Older", "Oldest"))
+  
+  p1 <- ggplot(dataset, aes(x= age_group, y = fev1)) + 
+    geom_boxplot(fill = "lightblue") + 
+    labs(title = "fev1 by Age Group (actual data)",
+         x = "Age Group",
+         y = "fev1")
+  print(p1)
+  
+  #hypothetical plot 
+  fake_data <- data.frame(
+    age_group = rep(c("Youngest", "Younger", "Older", "Oldest"), each = 30),
+    fev1 = c(rnorm(30, mean = 1.5, sd = 0.2),
+             rnorm(30, mean = 2.0, sd = 0.2),
+             rnorm(30, mean = 2.5, sd = 0.2),
+             rnorm(30, mean = 3.0, sd = 0.2))
+  )
+  p2 <- ggplot(fake_data, aes(x= age_group, y = fev1)) + 
+    geom_boxplot(fill = "lightgreen") + 
+    labs(title = "Hypothetical Plot",
+         x = "Age Group",
+         y = "fev1 (liters")
+  print(p2)
+}
+
 
 ```
 
 
 ```{r}
 ## Function for supporting premise statement 3
-
+premise_3 <- function(dataset, alpha = 0.05) {
+  med_age <- stats::median(dataset$age, na.rm = TRUE)
+  young <- dataset$fev1[dataset$age <= med_age]
+  old   <- dataset$fev1[dataset$age >  med_age]
+  
+  tt <- stats::t.test(old, young, alternative = "greater", var.equal = FALSE)
+  
+  (mean(old, na.rm = TRUE) > mean(young, na.rm = TRUE)) && 
+    (!is.na(tt$p.value) && tt$p.value < alpha)
+}
 ```
 
 Execute each of your function and show that the produce the expected output.
 
-
+```{r}
+premise_1(dataset)
+premise_2(dataset)
+premise_3(dataset)
+```
 
 
 ## Part 5
